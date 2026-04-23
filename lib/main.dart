@@ -1,6 +1,8 @@
 
 import 'package:flutter/material.dart';
-import 'package:noteit/features/homepage/screens/view/home_page.dart';
+import 'package:noteit/features/home_page/screens/view/home_page.dart';
+
+import 'features/note_page/screens/view/note_page.dart';
 
 void main()
 {
@@ -17,9 +19,11 @@ class _MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'NoteIt',
 
-      home: HomePage()
+      home: NotePage()
+      // home: HomePage()
     );
   }
 }
+
 
 

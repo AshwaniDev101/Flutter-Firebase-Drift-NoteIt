@@ -1,4 +1,8 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
+
+import '../../../../database/app_database.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -9,9 +13,15 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(
         title: Text('Note-it'),
         actions: [IconButton(onPressed: () {}, icon: Icon(Icons.grid_view_rounded)),
-          IconButton(onPressed: () {}, icon: Icon(Icons.sync)),
+          IconButton(onPressed: () async {
+
+
+          }, icon: Icon(Icons.sync)),
         ],
       ),
+      floatingActionButton: FloatingActionButton(onPressed: () async {
+        await AppDatabase().addNote("Shopping", "Buy milk and bread");
+      },child: Icon(Icons.add),),
       body: Column(
         children: [
           SizedBox(height: 4,),
@@ -23,17 +33,30 @@ class HomePage extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: 20,
-                itemBuilder: (context, index){
-                  return _Card(index: index,);
+              child: StreamBuilder<List<Note>>(
+                stream: AppDatabase().watchAllNotes(), // Simple and clean!
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const CircularProgressIndicator();
+                  final List<Note> data = snapshot.data!;
+
+                  return GridView.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemCount: data.length,
+                    itemBuilder: (context, index){
+                      return _Card(index: index,note:data[index]);
+                    },
+                  );
+                  return ListView.builder(
+                    itemCount: data.length,
+                    itemBuilder: (context, index) => ListTile(title: Text(data[index].title)),
+                  );
                 },
               ),
+
             ),
           ),
         ],
@@ -46,7 +69,8 @@ class HomePage extends StatelessWidget {
 class _Card extends StatelessWidget {
 
   final int index;
-  const _Card({required this.index, super.key});
+  final Note note;
+  const _Card({required this.index, required this.note, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -69,11 +93,11 @@ class _Card extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Text("Title $index"),
+                child: Text("Title $index: ${note.title}"),
               )),
           Expanded(child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text("Message"),
+            child: Text("Message: ${note.content}"),
           ))
         ],
       ),
