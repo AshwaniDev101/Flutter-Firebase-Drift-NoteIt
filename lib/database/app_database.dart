@@ -11,7 +11,7 @@ final localDbProvider = Provider((ref) {
 });
 
 @DriftDatabase(tables: [Notes])
-class _AppDatabase extends _$AppDatabase {
+class _AppDatabase extends _$_AppDatabase {
   static final _AppDatabase _instance = _AppDatabase._internal();
 
   factory _AppDatabase() => _instance;

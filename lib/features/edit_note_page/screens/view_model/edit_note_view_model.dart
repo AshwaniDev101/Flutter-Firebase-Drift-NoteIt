@@ -35,7 +35,7 @@ class EditNoteViewModel extends Notifier<EditNoteState> {
   EditNoteState build() {
     return const EditNoteState(
       isSaved: false,
-      isEditing: false,
+      isEditing: true,
       isLoading: false,
       error: null,
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:noteit/features/edit_note_page/screens/view_model/edit_note_view_model.dart';
 
-import '../../../../database/app_database.dart';
 
 class EditNotePage extends ConsumerStatefulWidget {
   const EditNotePage({super.key});
@@ -15,11 +14,23 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController contentController = TextEditingController();
 
-  bool isSaved = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    contentController.dispose();
+    super.dispose();
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    final localDb = ref.watch(localDbProvider);
 
     final viewModelState = ref.watch(editNoteViewModelProvider);
     final viewModel= ref.read(editNoteViewModelProvider.notifier);
@@ -40,22 +51,35 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
                   IconButton(
                     onPressed: () async {
 
-                      await viewModel.saveNote(titleController.text, contentController.text);
 
-                      if(viewModelState.isSaved && context.mounted)
+                      // editing, check icon
+                      if (context.mounted && viewModelState.isEditing)
                         {
-                          Navigator.of(context).pop();
-                        }
+
+                          viewModel.setEditing(false);
+                          await viewModel.saveNote(titleController.text, contentController.text);
+
+
+                        }else //
+                          {
+
+                            Navigator.of(context).pop();
+                          }
 
                     },
-                    icon: Icon(viewModelState.isSaved?Icons.arrow_back : Icons.check),
+                    icon: Icon(viewModelState.isEditing?Icons.check:Icons.arrow_back),
                   ),
 
                   const SizedBox(width: 4),
 
                   Expanded(
                     child: TextField(
-                      enabled: !viewModelState.isSaved,
+                      readOnly: !viewModelState.isEditing,
+                      onTap: () {
+                        if (!viewModelState.isEditing) {
+                          viewModel.setEditing(true);
+                        }
+                      },
                       controller: titleController,
                       decoration: const InputDecoration(hintText: "Title", border: InputBorder.none),
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -69,7 +93,7 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
               /// Status Row
               Row(
                 children: [
-                  Text("Editing", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                  Text(viewModelState.isEditing ? "Editing" : "Saved", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                   const Spacer(),
                   Text("4/23/26 8:48 AM", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                 ],
@@ -80,7 +104,12 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
               /// Note Content
               Expanded(
                 child: TextField(
-                  enabled: !viewModelState.isSaved,
+                  readOnly: !viewModelState.isEditing,
+                  onTap: () {
+                    if (!viewModelState.isEditing) {
+                      viewModel.setEditing(true);
+                    }
+                  },
                   controller: contentController,
                   maxLines: null,
                   expands: true,

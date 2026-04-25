@@ -28,7 +28,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     aliasedName,
     false,
     additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
+      minTextLength: 0,
       maxTextLength: 255,
     ),
     type: DriftSqlType.string,
@@ -57,8 +57,25 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, title, content, createdAt];
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    content,
+    createdAt,
+    updatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -96,6 +113,12 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -121,6 +144,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
     );
   }
 
@@ -135,11 +162,13 @@ class Note extends DataClass implements Insertable<Note> {
   final String title;
   final String content;
   final DateTime createdAt;
+  final DateTime? updatedAt;
   const Note({
     required this.id,
     required this.title,
     required this.content,
     required this.createdAt,
+    this.updatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -148,6 +177,9 @@ class Note extends DataClass implements Insertable<Note> {
     map['title'] = Variable<String>(title);
     map['content'] = Variable<String>(content);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
     return map;
   }
 
@@ -157,6 +189,9 @@ class Note extends DataClass implements Insertable<Note> {
       title: Value(title),
       content: Value(content),
       createdAt: Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
     );
   }
 
@@ -170,6 +205,7 @@ class Note extends DataClass implements Insertable<Note> {
       title: serializer.fromJson<String>(json['title']),
       content: serializer.fromJson<String>(json['content']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
     );
   }
   @override
@@ -180,6 +216,7 @@ class Note extends DataClass implements Insertable<Note> {
       'title': serializer.toJson<String>(title),
       'content': serializer.toJson<String>(content),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
     };
   }
 
@@ -188,11 +225,13 @@ class Note extends DataClass implements Insertable<Note> {
     String? title,
     String? content,
     DateTime? createdAt,
+    Value<DateTime?> updatedAt = const Value.absent(),
   }) => Note(
     id: id ?? this.id,
     title: title ?? this.title,
     content: content ?? this.content,
     createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
   );
   Note copyWithCompanion(NotesCompanion data) {
     return Note(
@@ -200,6 +239,7 @@ class Note extends DataClass implements Insertable<Note> {
       title: data.title.present ? data.title.value : this.title,
       content: data.content.present ? data.content.value : this.content,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
 
@@ -209,13 +249,14 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('content: $content, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, title, content, createdAt);
+  int get hashCode => Object.hash(id, title, content, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -223,7 +264,8 @@ class Note extends DataClass implements Insertable<Note> {
           other.id == this.id &&
           other.title == this.title &&
           other.content == this.content &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
 }
 
 class NotesCompanion extends UpdateCompanion<Note> {
@@ -231,17 +273,20 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<String> title;
   final Value<String> content;
   final Value<DateTime> createdAt;
+  final Value<DateTime?> updatedAt;
   const NotesCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.content = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
   });
   NotesCompanion.insert({
     this.id = const Value.absent(),
     required String title,
     required String content,
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
   }) : title = Value(title),
        content = Value(content);
   static Insertable<Note> custom({
@@ -249,12 +294,14 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<String>? title,
     Expression<String>? content,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (content != null) 'content': content,
       if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
@@ -263,12 +310,14 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Value<String>? title,
     Value<String>? content,
     Value<DateTime>? createdAt,
+    Value<DateTime?>? updatedAt,
   }) {
     return NotesCompanion(
       id: id ?? this.id,
       title: title ?? this.title,
       content: content ?? this.content,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -287,6 +336,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
     return map;
   }
 
@@ -296,15 +348,16 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('content: $content, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 }
 
-abstract class _$AppDatabase extends GeneratedDatabase {
-  _$AppDatabase(QueryExecutor e) : super(e);
-  $AppDatabaseManager get managers => $AppDatabaseManager(this);
+abstract class _$_AppDatabase extends GeneratedDatabase {
+  _$_AppDatabase(QueryExecutor e) : super(e);
+  $_AppDatabaseManager get managers => $_AppDatabaseManager(this);
   late final $NotesTable notes = $NotesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -319,6 +372,7 @@ typedef $$NotesTableCreateCompanionBuilder =
       required String title,
       required String content,
       Value<DateTime> createdAt,
+      Value<DateTime?> updatedAt,
     });
 typedef $$NotesTableUpdateCompanionBuilder =
     NotesCompanion Function({
@@ -326,9 +380,10 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String> content,
       Value<DateTime> createdAt,
+      Value<DateTime?> updatedAt,
     });
 
-class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
+class $$NotesTableFilterComposer extends Composer<_$_AppDatabase, $NotesTable> {
   $$NotesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -355,10 +410,15 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$NotesTableOrderingComposer
-    extends Composer<_$AppDatabase, $NotesTable> {
+    extends Composer<_$_AppDatabase, $NotesTable> {
   $$NotesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -385,10 +445,15 @@ class $$NotesTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$NotesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $NotesTable> {
+    extends Composer<_$_AppDatabase, $NotesTable> {
   $$NotesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -407,12 +472,15 @@ class $$NotesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
 class $$NotesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$_AppDatabase,
           $NotesTable,
           Note,
           $$NotesTableFilterComposer,
@@ -420,11 +488,11 @@ class $$NotesTableTableManager
           $$NotesTableAnnotationComposer,
           $$NotesTableCreateCompanionBuilder,
           $$NotesTableUpdateCompanionBuilder,
-          (Note, BaseReferences<_$AppDatabase, $NotesTable, Note>),
+          (Note, BaseReferences<_$_AppDatabase, $NotesTable, Note>),
           Note,
           PrefetchHooks Function()
         > {
-  $$NotesTableTableManager(_$AppDatabase db, $NotesTable table)
+  $$NotesTableTableManager(_$_AppDatabase db, $NotesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -441,11 +509,13 @@ class $$NotesTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String> content = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
               }) => NotesCompanion(
                 id: id,
                 title: title,
                 content: content,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
               ),
           createCompanionCallback:
               ({
@@ -453,11 +523,13 @@ class $$NotesTableTableManager
                 required String title,
                 required String content,
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
               }) => NotesCompanion.insert(
                 id: id,
                 title: title,
                 content: content,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -469,7 +541,7 @@ class $$NotesTableTableManager
 
 typedef $$NotesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$_AppDatabase,
       $NotesTable,
       Note,
       $$NotesTableFilterComposer,
@@ -477,14 +549,14 @@ typedef $$NotesTableProcessedTableManager =
       $$NotesTableAnnotationComposer,
       $$NotesTableCreateCompanionBuilder,
       $$NotesTableUpdateCompanionBuilder,
-      (Note, BaseReferences<_$AppDatabase, $NotesTable, Note>),
+      (Note, BaseReferences<_$_AppDatabase, $NotesTable, Note>),
       Note,
       PrefetchHooks Function()
     >;
 
-class $AppDatabaseManager {
-  final _$AppDatabase _db;
-  $AppDatabaseManager(this._db);
+class $_AppDatabaseManager {
+  final _$_AppDatabase _db;
+  $_AppDatabaseManager(this._db);
   $$NotesTableTableManager get notes =>
       $$NotesTableTableManager(_db, _db.notes);
 }
