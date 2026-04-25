@@ -13,7 +13,7 @@ class _MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, ref) {
-
+    
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
       routerConfig: router,

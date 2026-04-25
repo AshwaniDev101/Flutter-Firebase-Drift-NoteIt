@@ -17,7 +17,7 @@ final routerProvider = Provider((ref) {
     initialLocation: AppRoutes.home,
     routes: <RouteBase>[
       GoRoute( path: AppRoutes.home, builder: (context, state) => const HomePage()),
-      GoRoute( path: AppRoutes.edit, builder: (context, state) => const EditNotePage()),
+      GoRoute( path: AppRoutes.edit, builder: (context, state) => EditNotePage()),
     ],
   );
 });

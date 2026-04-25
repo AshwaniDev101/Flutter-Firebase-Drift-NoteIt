@@ -1,17 +1,22 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/cupertino.dart' hide Table;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'notes_table.dart';
 
 part 'app_database.g.dart';
 
+final localDbProvider = Provider((ref) {
+  return _AppDatabase();
+});
+
 @DriftDatabase(tables: [Notes])
-class AppDatabase extends _$AppDatabase {
-  static final AppDatabase _instance = AppDatabase._internal();
+class _AppDatabase extends _$AppDatabase {
+  static final _AppDatabase _instance = _AppDatabase._internal();
 
-  factory AppDatabase() => _instance;
+  factory _AppDatabase() => _instance;
 
-  AppDatabase._internal()
+  _AppDatabase._internal()
     : super(
         driftDatabase(
           name: 'my_notes_db',
@@ -42,15 +47,11 @@ class AppDatabase extends _$AppDatabase {
     return (select(notes)..where((t) => t.id.equals(id))).getSingle();
   }
 
-  Future<bool> updateNoteFull(int id, String title, String content) async {
-    return await (update(notes)..where((t) => t.id.equals(id))).write(
-          NotesCompanion(title: Value(title), content: Value(content)),
-        ) >
+  Future<bool> updateNote(int id, String title, String content) async {
+    return await (update(
+          notes,
+        )..where((t) => t.id.equals(id))).write(NotesCompanion(title: Value(title), content: Value(content))) >
         0;
-  }
-
-  Future<bool> updateNote(int id, String newContent) async {
-    return await (update(notes)..where((t) => t.id.equals(id))).write(NotesCompanion(content: Value(newContent))) > 0;
   }
 
   Future<int> deleteNote(int id) async {

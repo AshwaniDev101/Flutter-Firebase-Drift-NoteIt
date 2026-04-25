@@ -1,30 +1,33 @@
 import 'dart:ffi';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:noteit/core/routing.dart';
 
 import '../../../../database/app_database.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, ref) {
+
+    final localDb = ref.watch(localDbProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Note-it'),
         actions: [IconButton(onPressed: () {}, icon: Icon(Icons.grid_view_rounded)),
           IconButton(onPressed: () async {
 
-
           }, icon: Icon(Icons.sync)),
         ],
       ),
       floatingActionButton: FloatingActionButton(onPressed: () async {
 
-        context.go(AppRoutes.edit);
-        // await AppDatabase().addNote("Shopping", "Buy milk and bread");
+        context.push(AppRoutes.edit);
+
       },child: Icon(Icons.add),),
       body: Column(
         children: [
@@ -38,9 +41,9 @@ class HomePage extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: StreamBuilder<List<Note>>(
-                stream: AppDatabase().watchAllNotes(), // Simple and clean!
+                stream: localDb.watchAllNotes(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const CircularProgressIndicator();
+                  if (!snapshot.hasData) return Center(child: const CircularProgressIndicator());
                   final List<Note> data = snapshot.data!;
 
                   return GridView.builder(
@@ -97,11 +100,12 @@ class _Card extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Text("Title $index: ${note.title}"),
+                // child: Text("Title $index: ${note.title}"),
+                child: Text(note.title),
               )),
           Expanded(child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text("Message: ${note.content}"),
+            child: Text(note.content),
           ))
         ],
       ),
