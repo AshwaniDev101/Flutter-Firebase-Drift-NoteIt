@@ -1,6 +1,8 @@
 import 'dart:ffi';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:noteit/core/routing.dart';
 
 import '../../../../database/app_database.dart';
 
@@ -20,7 +22,9 @@ class HomePage extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(onPressed: () async {
-        await AppDatabase().addNote("Shopping", "Buy milk and bread");
+
+        context.go(AppRoutes.edit);
+        // await AppDatabase().addNote("Shopping", "Buy milk and bread");
       },child: Icon(Icons.add),),
       body: Column(
         children: [

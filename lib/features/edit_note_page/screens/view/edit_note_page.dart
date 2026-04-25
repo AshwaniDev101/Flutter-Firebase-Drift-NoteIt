@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../database/app_database.dart';
 
-class NotePage extends StatelessWidget {
-  const NotePage({super.key});
+class EditNotePage extends StatelessWidget {
+  const EditNotePage({super.key});
 
   @override
   Widget build(BuildContext context) {

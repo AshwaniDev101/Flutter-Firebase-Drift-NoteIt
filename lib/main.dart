@@ -1,26 +1,24 @@
 
 import 'package:flutter/material.dart';
-import 'package:noteit/features/home_page/screens/view/home_page.dart';
-
-import 'features/note_page/screens/view/note_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:noteit/core/routing.dart';
 
 void main()
 {
-  runApp(_MyApp());
+  runApp(ProviderScope(child: _MyApp(),));
 }
 
-class _MyApp extends StatelessWidget {
+class _MyApp extends ConsumerWidget {
   const _MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, ref) {
 
+    final router = ref.watch(routerProvider);
+    return MaterialApp.router(
+      routerConfig: router,
       debugShowCheckedModeBanner: false,
       title: 'NoteIt',
-
-      home: NotePage()
-      // home: HomePage()
     );
   }
 }
