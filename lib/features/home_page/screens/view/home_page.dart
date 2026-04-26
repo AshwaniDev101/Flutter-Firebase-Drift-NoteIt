@@ -24,13 +24,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       appBar: isSelectMode? AppBar(
+        backgroundColor: Colors.green,
         leading: IconButton(onPressed: () {
           setState(() {
             isSelectMode = false;
             noteIds.clear();
           });
-        }, icon: Icon(Icons.arrow_back)),
-        title: Text('${noteIds.length} Selected'),
+        }, icon: Icon(Icons.arrow_back, color:Colors.white)),
+        title: Text('${noteIds.length} Selected', style: TextStyle(color: Colors.white),),
         actions: [
           IconButton(onPressed: () async {
             for (final id in noteIds) {
@@ -40,7 +41,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               isSelectMode = false;
               noteIds.clear();
             });
-          }, icon: Icon(Icons.delete)),
+          }, icon: Icon(Icons.delete, color:Colors.white)),
 
         ],
       ): AppBar(
@@ -72,6 +73,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return Center(child: const CircularProgressIndicator());
                   final List<Note> data = snapshot.data!;
+                  if (data.isEmpty) {
+                    return const Center(child: Text('No notes yet. Tap + to add one!'));
+                  }
 
                   return GridView.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -162,7 +166,7 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-
+      constraints: const BoxConstraints.expand(),
       decoration: BoxDecoration(
         color: Colors.amber.shade100,
         borderRadius: BorderRadius.circular(8),
@@ -171,21 +175,22 @@ class _Card extends StatelessWidget {
 
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Expanded(child: Container(height: 1,color: Colors.red,)),
           Container(
-
               decoration: BoxDecoration(
-                color: Colors.amber.shade600,
+                color: Colors.amber.shade200,
                 borderRadius: BorderRadius.only(topLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                // child: Text("Title $index: ${note.title}"),
-                child: Text(note.title),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Text(note.title, style: TextStyle(fontWeight: FontWeight.bold)),
               )),
-          Expanded(child: Padding(
+          Expanded(
+            child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(note.content),
+            child: Text(
+              note.content,
+              // overflow: TextOverflow.fade,
+            ),
           ))
         ],
       ),
