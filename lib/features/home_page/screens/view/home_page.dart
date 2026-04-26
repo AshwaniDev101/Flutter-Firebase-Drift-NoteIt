@@ -7,16 +7,43 @@ import 'package:noteit/core/routing.dart';
 
 import '../../../../database/app_database.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
 
+class _HomePageState extends ConsumerState<HomePage> {
+  bool isSelectMode = false;
+  final Set<int> noteIds = {};
+
+  @override
+  Widget build(BuildContext context) {
     final localDb = ref.watch(localDbProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: isSelectMode? AppBar(
+        leading: IconButton(onPressed: () {
+          setState(() {
+            isSelectMode = false;
+            noteIds.clear();
+          });
+        }, icon: Icon(Icons.arrow_back)),
+        title: Text('${noteIds.length} Selected'),
+        actions: [
+          IconButton(onPressed: () async {
+            for (final id in noteIds) {
+              await localDb.deleteNote(id);
+            }
+            setState(() {
+              isSelectMode = false;
+              noteIds.clear();
+            });
+          }, icon: Icon(Icons.delete)),
+
+        ],
+      ): AppBar(
         title: Text('Note-it'),
         actions: [IconButton(onPressed: () {}, icon: Icon(Icons.grid_view_rounded)),
           IconButton(onPressed: () async {
@@ -54,12 +81,34 @@ class HomePage extends ConsumerWidget {
                     ),
                     itemCount: data.length,
                     itemBuilder: (context, index){
-                      return _Card(index: index,note:data[index]);
+                      return _SelectableCard(
+                          onTap: (){
+                            if (isSelectMode) {
+                              setState(() {
+                                if (noteIds.contains(data[index].id)) {
+                                  noteIds.remove(data[index].id);
+                                  if (noteIds.isEmpty) isSelectMode = false;
+                                } else {
+                                  noteIds.add(data[index].id);
+                                }
+                              });
+                            } else {
+                              context.push(AppRoutes.edit, extra: data[index]);
+                            }
+                          },
+                          onLongPress: (){
+                            setState(() {
+                              isSelectMode = true;
+                              noteIds.add(data[index].id);
+                            });
+                          },
+
+                          isSelected: noteIds.contains(data[index].id),
+                          child: _Card(
+                            index: index,
+                            note: data[index],
+                          ));
                     },
-                  );
-                  return ListView.builder(
-                    itemCount: data.length,
-                    itemBuilder: (context, index) => ListTile(title: Text(data[index].title)),
                   );
                 },
               ),
@@ -73,10 +122,41 @@ class HomePage extends ConsumerWidget {
 }
 
 
+class _SelectableCard extends StatelessWidget {
+
+  final Widget child;
+  final bool isSelected;
+  final void Function() onTap;
+  final void Function() onLongPress;
+
+  const _SelectableCard({required this.child, required this.isSelected, required this.onTap, required this.onLongPress, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Stack(
+        children: [
+          child,
+          if (isSelected)
+            const Positioned(
+              top: 8,
+              right: 8,
+              child: Icon(Icons.check_circle, color: Colors.green),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+
 class _Card extends StatelessWidget {
 
   final int index;
   final Note note;
+
   const _Card({required this.index, required this.note, super.key});
 
   @override
