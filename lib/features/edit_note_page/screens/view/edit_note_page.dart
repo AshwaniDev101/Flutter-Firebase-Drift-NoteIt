@@ -28,7 +28,6 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
     final viewModel = ref.read(editNoteViewModelProvider.notifier);
 
     return Scaffold(
-      backgroundColor: noteTheme.cardBackground,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -39,7 +38,7 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
               Row(
                 children: [
                   IconButton(
-                    color: noteTheme.titleText,
+                    color: noteTheme.cardTitleForeground,
                     onPressed: () async {
                       if (context.mounted && viewModelState.isEditing) {
                         viewModel.setEditing(false);
@@ -76,13 +75,13 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: noteTheme.titleText,
+                        color: noteTheme.cardTitleForeground,
                       ),
                     ),
                   ),
 
                   IconButton(
-                    color: noteTheme.titleText,
+                    color: noteTheme.cardTitleForeground,
                     onPressed: () {},
                     icon: const Icon(Icons.more_vert_rounded),
                   ),
@@ -94,7 +93,6 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
                   Text(
                     viewModelState.isEditing ? "Editing" : "Saved",
                     style: TextStyle(
-                      color: noteTheme.contentText,
                       fontSize: 12,
                     ),
                   ),
@@ -102,7 +100,6 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
                   Text(
                     "4/23/26 8:48 AM",
                     style: TextStyle(
-                      color: noteTheme.contentText,
                       fontSize: 12,
                     ),
                   ),
@@ -129,7 +126,6 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
                   ),
                   style: TextStyle(
                     fontSize: 15,
-                    color: noteTheme.contentText,
                   ),
                 ),
               ),
@@ -138,12 +134,11 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    color: noteTheme.actionButton,
+
                     onPressed: () {},
                     icon: const Icon(Icons.undo),
                   ),
                   IconButton(
-                    color: noteTheme.actionButton,
                     onPressed: () {},
                     icon: const Icon(Icons.redo),
                   ),

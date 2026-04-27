@@ -23,7 +23,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final noteTheme = Theme.of(context).extension<NoteTheme>()!;
 
     return Scaffold(
-      backgroundColor: noteTheme.cardBackground,
+
       appBar: isSelectMode
           ? AppBar(
         backgroundColor: noteTheme.selectedAppBar,
@@ -34,11 +34,11 @@ class _HomePageState extends ConsumerState<HomePage> {
               noteIds.clear();
             });
           },
-          icon: Icon(Icons.arrow_back, color: noteTheme.titleText),
+          icon: Icon(Icons.arrow_back,),
         ),
         title: Text(
           '${noteIds.length} Selected',
-          style: TextStyle(color: noteTheme.titleText),
+
         ),
         actions: [
           IconButton(
@@ -51,30 +51,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                 noteIds.clear();
               });
             },
-            icon: Icon(Icons.delete, color: noteTheme.actionButton),
+            icon: Icon(Icons.delete,),
           ),
         ],
       )
           : AppBar(
-        backgroundColor: noteTheme.appBar,
         title: Text(
           'Note-it',
-          style: TextStyle(color: noteTheme.titleText),
         ),
         actions: [
           IconButton(
             onPressed: () {},
-            icon: Icon(Icons.grid_view_rounded,
-                color: noteTheme.titleText),
+            icon: Icon(Icons.grid_view_rounded,),
           ),
           IconButton(
             onPressed: () {},
-            icon: Icon(Icons.sync, color: noteTheme.titleText),
+            icon: Icon(Icons.sync, ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: noteTheme.actionButton,
         onPressed: () async {
           context.push(AppRoutes.edit);
         },
@@ -88,7 +84,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             children: [
               Text(
                 'Sort by: Name',
-                style: TextStyle(color: noteTheme.contentText),
+
               )
             ],
           ),
@@ -110,7 +106,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                     return Center(
                       child: Text(
                         'No notes yet. Tap + to add one!',
-                        style: TextStyle(color: noteTheme.contentText),
                       ),
                     );
                   }
@@ -181,7 +176,6 @@ class _SelectableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final noteTheme = Theme.of(context).extension<NoteTheme>()!;
 
     return GestureDetector(
       onTap: onTap,
@@ -195,7 +189,6 @@ class _SelectableCard extends StatelessWidget {
               right: 8,
               child: Icon(
                 Icons.check_circle,
-                color: noteTheme.actionButton,
               ),
             ),
         ],
@@ -213,52 +206,46 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     final noteTheme = Theme.of(context).extension<NoteTheme>()!;
 
-    return Container(
-      constraints: const BoxConstraints.expand(),
-      decoration: BoxDecoration(
-        color: noteTheme.cardBackground,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-            color: Colors.black.withOpacity(0.05),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: noteTheme.selectedAppBar.withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                bottomRight: Radius.circular(10),
+    return Card(
+
+      color: noteTheme.cardContentBackground,
+      child: Container(
+        constraints: const BoxConstraints.expand(),
+
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: noteTheme.cardTitleBackground,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(10),
+                  bottomRight: Radius.circular(10),
+                ),
               ),
-            ),
-            child: Padding(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Text(
-                note.title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: noteTheme.cardTitle,
+              child: Padding(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Text(
+                  note.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: noteTheme.cardTitleForeground,
+                  ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                note.content,
-                style: TextStyle(color: noteTheme.cardContent),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  note.content,
+                  style: TextStyle(color: noteTheme.cardContentForeground),
+                ),
               ),
-            ),
-          )
-        ],
+            )
+          ],
+        ),
       ),
     );
   }

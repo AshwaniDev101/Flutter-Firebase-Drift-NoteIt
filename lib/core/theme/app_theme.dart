@@ -5,37 +5,39 @@ import 'package:noteit/core/theme/note_theme.dart';
 class Themes {
   static ThemeData get lightThemeData => ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme(
+    colorScheme: const ColorScheme(
       brightness: Brightness.light,
-      primary: Color(0xFF5B7CFA),
-      onPrimary: Colors.white,
-      secondary: Color(0xFFFFC857),
-      onSecondary: Colors.black,
-      error: Colors.redAccent,
+      primary: Color(0xFFF38181),
+      onPrimary: Color(0xFF111827),
+      secondary: Color(0xFF95E1D3),
+      onSecondary: Color(0xFF111827),
+      error: Color(0xFFEF4444),
       onError: Colors.white,
-      surface: Color(0xFFF8F9FD),
-      onSurface: Colors.black87,
-      outlineVariant: Colors.grey.shade300,
+      surface: Color(0xFFFAFAFA),
+      onSurface: Color(0xFF111827),
+      outlineVariant: Color(0xFFEAFFD0),
     ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: Color(0xFF5B7CFA),
-      foregroundColor: Colors.white,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFF2C3947),
+      foregroundColor: Color(0xFFFBFBFB),
+      elevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarColor: Color(0xFF5B7CFA),
+        statusBarColor: Color(0xFF212935),
         statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
     ),
     extensions: const [
       NoteTheme(
-        appBar: Color(0xFF5B7CFA),
-        selectedAppBar: Color(0xFF3F5AE0),
-        cardBackground: Colors.white,
-        cardTitle: Color(0xFF1C1C1E),
-        cardContent: Color(0xFF6B7280),
-        titleText: Color(0xFF111827),
-        contentText: Color(0xFF374151),
-        actionButton: Color(0xFFFFC857),
+        selectedAppBar: Color(0xFF73C566),
+        selectedCheckColor: Color(0xFF73C566),
+
+        cardTitleBackground: Color(0xFF111827),
+        cardTitleForeground: Color(0xFFFFFFFF),
+
+        cardContentBackground: Color(0xFFEDEDED),
+        cardContentForeground: Color(0xFF111827),
+
       )
     ],
   );
@@ -43,38 +45,39 @@ class Themes {
   static ThemeData get darkThemeData => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    colorScheme: ColorScheme(
+    colorScheme: const ColorScheme(
       brightness: Brightness.dark,
-      primary: Color(0xFF7AA2FF),
-      onPrimary: Colors.black,
-      secondary: Color(0xFFFFC857),
-      onSecondary: Colors.black,
-      error: Colors.redAccent,
+      primary: Color(0xFFAD5C71),
+      onPrimary: Colors.white,
+      secondary: Color(0xFF72BAA9),
+      onSecondary: Color(0xFF1C1917),
+      error: Color(0xFFF87171),
       onError: Colors.black,
-      surface: Color(0xFF0F172A),
-      onSurface: Colors.white70,
-      outlineVariant: Colors.grey,
+      surface: Color(0xFF241F21),
+      onSurface: Color(0xFFF5F5F4),
+      outlineVariant: Color(0xFF44403C),
     ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: Color(0xFF111827),
-      foregroundColor: Colors.white,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFF241F21),
+      foregroundColor: Color(0xFFAD5C71),
       elevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarColor: Color(0xFF0F172A),
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
       ),
     ),
     extensions: const [
       NoteTheme(
-        appBar: Color(0xFF111827),
-        selectedAppBar: Color(0xFF1F2937),
-        cardBackground: Color(0xFF57709C),
-        cardTitle: Colors.white,
-        cardContent: Color(0xFF9CA3AF),
-        titleText: Colors.white,
-        contentText: Color(0xFFD1D5DB),
-        actionButton: Color(0xFFFFC857),
+        selectedAppBar: Color(0xFF73C566),
+        selectedCheckColor: Color(0xFF73C566),
+
+        cardTitleBackground: Color(0xFF111827),
+        cardTitleForeground: Color(0xFF111827),
+
+        cardContentBackground: Color(0xFFFFF8B1),
+        cardContentForeground: Color(0xFF374151),
+
       )
     ],
   );

@@ -2,49 +2,44 @@ import 'package:flutter/material.dart';
 
 @immutable
 class NoteTheme extends ThemeExtension<NoteTheme> {
-  final Color appBar;
   final Color selectedAppBar;
+  final Color selectedCheckColor;
 
-  final Color cardBackground;
-  final Color cardTitle;
-  final Color cardContent;
+  final Color cardTitleBackground;
+  final Color cardTitleForeground;
 
-  final Color titleText;
-  final Color contentText;
-
-  final Color actionButton;
+  final Color cardContentBackground;
+  final Color cardContentForeground;
 
   const NoteTheme({
-    required this.appBar,
     required this.selectedAppBar,
-    required this.cardBackground,
-    required this.cardTitle,
-    required this.cardContent,
-    required this.titleText,
-    required this.contentText,
-    required this.actionButton,
+    required this.selectedCheckColor,
+    required this.cardTitleBackground,
+    required this.cardTitleForeground,
+    required this.cardContentBackground,
+    required this.cardContentForeground,
   });
 
   @override
   NoteTheme copyWith({
-    Color? appBar,
     Color? selectedAppBar,
-    Color? cardBackground,
-    Color? cardTitle,
-    Color? cardContent,
-    Color? titleText,
-    Color? contentText,
-    Color? actionButton,
+    Color? selectedCheckColor,
+    Color? cardTitleBackground,
+    Color? cardTitleForeground,
+    Color? cardContentBackground,
+    Color? cardContentForeground,
   }) {
     return NoteTheme(
-      appBar: appBar ?? this.appBar,
       selectedAppBar: selectedAppBar ?? this.selectedAppBar,
-      cardBackground: cardBackground ?? this.cardBackground,
-      cardTitle: cardTitle ?? this.cardTitle,
-      cardContent: cardContent ?? this.cardContent,
-      titleText: titleText ?? this.titleText,
-      contentText: contentText ?? this.contentText,
-      actionButton: actionButton ?? this.actionButton,
+      selectedCheckColor: selectedCheckColor ?? this.selectedCheckColor,
+      cardTitleBackground:
+      cardTitleBackground ?? this.cardTitleBackground,
+      cardTitleForeground:
+      cardTitleForeground ?? this.cardTitleForeground,
+      cardContentBackground:
+      cardContentBackground ?? this.cardContentBackground,
+      cardContentForeground:
+      cardContentForeground ?? this.cardContentForeground,
     );
   }
 
@@ -53,14 +48,18 @@ class NoteTheme extends ThemeExtension<NoteTheme> {
     if (other is! NoteTheme) return this;
 
     return NoteTheme(
-      appBar: Color.lerp(appBar, other.appBar, t)!,
-      selectedAppBar: Color.lerp(selectedAppBar, other.selectedAppBar, t)!,
-      cardBackground: Color.lerp(cardBackground, other.cardBackground, t)!,
-      cardTitle: Color.lerp(cardTitle, other.cardTitle, t)!,
-      cardContent: Color.lerp(cardContent, other.cardContent, t)!,
-      titleText: Color.lerp(titleText, other.titleText, t)!,
-      contentText: Color.lerp(contentText, other.contentText, t)!,
-      actionButton: Color.lerp(actionButton, other.actionButton, t)!,
+      selectedAppBar:
+      Color.lerp(selectedAppBar, other.selectedAppBar, t)!,
+      selectedCheckColor:
+      Color.lerp(selectedCheckColor, other.selectedCheckColor, t)!,
+      cardTitleBackground:
+      Color.lerp(cardTitleBackground, other.cardTitleBackground, t)!,
+      cardTitleForeground:
+      Color.lerp(cardTitleForeground, other.cardTitleForeground, t)!,
+      cardContentBackground:
+      Color.lerp(cardContentBackground, other.cardContentBackground, t)!,
+      cardContentForeground:
+      Color.lerp(cardContentForeground, other.cardContentForeground, t)!,
     );
   }
 }
