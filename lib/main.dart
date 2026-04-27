@@ -1,7 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:noteit/core/routing.dart';
+import 'package:noteit/core/routing/routing.dart';
 
 void main()
 {
