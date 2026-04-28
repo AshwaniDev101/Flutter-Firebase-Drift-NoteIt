@@ -74,7 +74,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         onPressed: () async {
           context.push(AppRoutes.edit);
         },
-        child: const Icon(Icons.add, color: Colors.black),
+        child: const Icon(Icons.add),
       ),
       body: Column(
         children: [

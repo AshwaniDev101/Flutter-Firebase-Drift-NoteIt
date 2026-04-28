@@ -7,10 +7,10 @@ class Themes {
     useMaterial3: true,
     colorScheme: const ColorScheme(
       brightness: Brightness.light,
-      primary: Color(0xFFF38181),
-      onPrimary: Color(0xFF111827),
-      secondary: Color(0xFF95E1D3),
-      onSecondary: Color(0xFF111827),
+      primary: Color(0xFF111827),
+      onPrimary: Color(0xFFFFFFFF),
+      secondary: Color(0xFF344871),
+      onSecondary: Color(0xFFE4E4E4),
       error: Color(0xFFEF4444),
       onError: Colors.white,
       surface: Color(0xFFFAFAFA),
@@ -35,7 +35,7 @@ class Themes {
         cardTitleBackground: Color(0xFF111827),
         cardTitleForeground: Color(0xFFFFFFFF),
 
-        cardContentBackground: Color(0xFFEDEDED),
+        cardContentBackground: Color(0xFFF6F6F6),
         cardContentForeground: Color(0xFF111827),
 
       )
