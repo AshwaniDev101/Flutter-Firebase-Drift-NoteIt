@@ -6,7 +6,7 @@ import 'notes_table.dart';
 
 part 'app_database.g.dart';
 
-final localDbProvider = Provider((ref) {
+final driftDbProvider = Provider((ref) {
   return _AppDatabase();
 });
 

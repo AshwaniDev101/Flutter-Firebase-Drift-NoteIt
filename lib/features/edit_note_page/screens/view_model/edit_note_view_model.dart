@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../database/app_database.dart';
+import '../../../../database/drift/drift_database.dart';
+import '../../../../database/drift/firebase_provider.dart';
 
 class EditNoteState {
   final bool isSaved;
@@ -49,7 +50,7 @@ class EditNoteViewModel extends Notifier<EditNoteState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      await ref.read(localDbProvider).addNote(title, content);
+      await ref.read(driftDbProvider).addNote(title, content);
 
       state = state.copyWith(
         isSaved: true,
@@ -68,7 +69,7 @@ class EditNoteViewModel extends Notifier<EditNoteState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      await ref.read(localDbProvider).updateNote(id, title, content);
+      await ref.read(driftDbProvider).updateNote(id, title, content);
 
       state = state.copyWith(
         isSaved: true,

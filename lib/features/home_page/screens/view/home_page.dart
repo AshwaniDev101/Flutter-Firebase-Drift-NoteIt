@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:noteit/core/routing/routing.dart';
 import 'package:noteit/core/theme/note_theme.dart';
 
-import '../../../../database/app_database.dart';
+import '../../../../database/drift/drift_database.dart';
+import '../../../../database/drift/firebase_provider.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -19,7 +20,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final localDb = ref.watch(localDbProvider);
+    final localDb = ref.watch(driftDbProvider);
     final noteTheme = Theme.of(context).extension<NoteTheme>()!;
 
     return Scaffold(
