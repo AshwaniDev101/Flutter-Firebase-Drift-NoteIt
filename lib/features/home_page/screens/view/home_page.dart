@@ -131,6 +131,19 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  void _handleNoteTap(Note note) {
+    final isAndroid = defaultTargetPlatform == TargetPlatform.android;
+
+    if (!isAndroid) {
+      // Open in the right-side panel tabs
+      ref.read(tabViewModelProvider.notifier).openTab(note);
+    } else {
+      // Push to new screen on mobile
+      context.push(AppRoutes.edit, extra: note);
+    }
+  }
+
+
   Widget _buildStandardGridView(HomePageState homeState, HomeViewModel viewModel, bool isAndroid) {
     return Center(
       child: Column(
@@ -144,6 +157,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               onToggleSelection: viewModel.toggleSelection,
               onEnableSelectMode: viewModel.enableSelectMode,
               onPromptPassword: _promptForPassword,
+              onNoteTap: _handleNoteTap,
             ),
           ),
         ],
@@ -232,9 +246,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: IndexedStack(
             index: tabState.activeTabIndex,
             children: tabState.openTabs.map((note) {
-              // --- RENDER THE ACTUAL EDITOR HERE ---
               return EditNotePage(
-                key: ValueKey(note.id), // Important: Key ensures state refreshes correctly when switching tabs
+                key: ValueKey(note.id),
                 existingNote: note,
               );
             }).toList(),

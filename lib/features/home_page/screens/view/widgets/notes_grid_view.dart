@@ -1,9 +1,6 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../../core/routing/routing.dart';
 import '../../../../../database/drift/drift_database.dart';
 import '../../../../../database/sync_manager.dart';
 import '../../../../../shared/widgets/note_card.dart';
@@ -16,6 +13,8 @@ class NotesGridView extends ConsumerWidget {
   final Function() onEnableSelectMode;
   final Future<void> Function(BuildContext, Note) onPromptPassword;
 
+  final void Function(Note) onNoteTap;
+
   const NotesGridView({
     super.key,
     required this.isSelectMode,
@@ -23,6 +22,7 @@ class NotesGridView extends ConsumerWidget {
     required this.onToggleSelection,
     required this.onEnableSelectMode,
     required this.onPromptPassword,
+    required this.onNoteTap,
   });
 
   Future<void> _deleteNote(WidgetRef ref, int id) async {
@@ -72,7 +72,7 @@ class NotesGridView extends ConsumerWidget {
                     } else if (displayAsLocked) {
                       await onPromptPassword(context, currentNote);
                     } else {
-                      await context.push(AppRoutes.edit, extra: currentNote);
+                      onNoteTap(currentNote);
                     }
                   },
                   onLongPress: () {
@@ -101,47 +101,6 @@ class NotesGridView extends ConsumerWidget {
                         visualDensity: VisualDensity.compact,
                         onPressed: () => _deleteNote(ref, currentNote.id),
                       ),
-
-                      // Note is completely UNLOCKED -> Option to permanently lock it
-                      // if (!currentNote.isLocked)
-                      //   IconButton(
-                      //     icon: const Icon(Icons.lock_outline_rounded, size: 18, color: Colors.grey),
-                      //     visualDensity: VisualDensity.compact,
-                      //     tooltip: 'Lock Note',
-                      //     onPressed: () async {
-                      //       final lockManager = ref.read(lockManagerProvider.notifier);
-                      //       if (!lockManager.hasMasterPassword) {
-                      //         ScaffoldMessenger.of(context).showSnackBar(
-                      //             const SnackBar(content: Text('Tap the note to set a Master Password first!'))
-                      //         );
-                      //         return;
-                      //       }
-                      //       final driftDatabase = ref.read(noteDriftDatabaseProvider);
-                      //       await driftDatabase.lockNote(currentNote.id, isLocked: true);
-                      //       ref.read(syncNotifierProvider.notifier).executeFullSync();
-                      //     },
-                      //   ),
-
-                      // If Note is LOCKED, but UNLOCKED FOR SESSION -> Option to lock it immediately
-                      // if (currentNote.isLocked && isSessionUnlocked)
-                      //   IconButton(
-                      //     icon: const Icon(Icons.lock_open_rounded, size: 18, color: Colors.green),
-                      //     visualDensity: VisualDensity.compact,
-                      //     tooltip: 'Lock instantly',
-                      //     onPressed: () {
-                      //       // Assuming your lock manager has a method to remove from the session list
-                      //       ref.read(lockManagerProvider.notifier).lockSessionNote(currentNote.id);
-                      //     },
-                      //   ),
-
-                      //  Note is LOCKED and LOCKED FOR SESSION -> Option to unlock directly from hover
-                      // if (currentNote.isLocked && !isSessionUnlocked)
-                      //   IconButton(
-                      //     icon: const Icon(Icons.lock_rounded, size: 18, color: Colors.grey),
-                      //     visualDensity: VisualDensity.compact,
-                      //     tooltip: 'Unlock',
-                      //     onPressed: () => onPromptPassword(context, currentNote),
-                      //   ),
                     ],
                   ],
                 );
