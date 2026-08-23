@@ -7,10 +7,8 @@ import 'package:noteit/database/drift/drift_database.dart';
 import 'package:noteit/features/home_page/screens/view/widgets/home_app_bars.dart';
 import 'package:noteit/features/home_page/screens/view/widgets/notes_grid_view.dart';
 import 'package:noteit/features/home_page/screens/view/widgets/sort_options_bar.dart';
-import 'package:noteit/features/home_page/screens/view/widgets/tab_view_state.dart';
 import 'package:noteit/features/password_page/screens/view/password_page.dart';
 import 'package:noteit/features/edit_note_page/screens/view/edit_note_page.dart';
-
 import '../../../../shared/managers/lock_manger/lock_manager.dart';
 import '../../../../database/sync_manager.dart';
 import '../../../drawer_page/homepage_drawer.dart';
@@ -26,6 +24,9 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   final TextEditingController _searchController = TextEditingController();
+
+  // Tracks the currently selected note for the desktop/web split view
+  Note? _activeNote;
 
   @override
   void initState() {
@@ -54,10 +55,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     // ViewModel State & Notifier
     final homeState = ref.watch(homeViewModelProvider);
     final viewModel = ref.read(homeViewModelProvider.notifier);
-
-    // Tab State & Notifier
-    final tabState = ref.watch(tabViewModelProvider);
-    final tabViewModel = ref.read(tabViewModelProvider.notifier);
 
     // Forces Riverpod to keep SyncManager awake
     ref.watch(syncNotifierProvider);
@@ -95,28 +92,24 @@ class _HomePageState extends ConsumerState<HomePage> {
                 syncStatus: 0,
                 versionCounter: 1,
               );
-              tabViewModel.openTab(emptyNote);
+              // Open new note directly in the right panel
+              setState(() {
+                _activeNote = emptyNote;
+              });
             } else {
               context.push(AppRoutes.edit);
             }
           },
           child: const Icon(Icons.add),
         ),
-        // Permanently show Split View on Desktop/Web, Standard View on Android
         body: !isAndroid
-            ? _buildSplitTabView(homeState, viewModel, tabState, tabViewModel, isAndroid)
+            ? _buildSplitView(homeState, viewModel, isAndroid)
             : _buildStandardGridView(homeState, viewModel, isAndroid),
       ),
     );
   }
 
-  Widget _buildSplitTabView(
-      HomePageState homeState,
-      HomeViewModel viewModel,
-      TabViewState tabState,
-      TabViewModel tabViewModel,
-      bool isAndroid,
-      ) {
+  Widget _buildSplitView(HomePageState homeState, HomeViewModel viewModel, bool isAndroid) {
     return Row(
       children: [
         SizedBox(
@@ -125,9 +118,36 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         const VerticalDivider(width: 1, thickness: 1),
         Expanded(
-          child: _buildDesktopTabView(tabState, tabViewModel),
+          child: _buildRightPanel(),
         ),
       ],
+    );
+  }
+
+  Widget _buildRightPanel() {
+    if (_activeNote == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.edit_note, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text('No note selected', style: TextStyle(color: Colors.grey.shade600, fontSize: 18)),
+            const SizedBox(height: 4),
+            Text(
+              'Select a note from the sidebar or click + to start editing.',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ValueKey ensures that Flutter destroys and rebuilds the EditNotePage
+    // entirely when the note ID changes, keeping states clean between selections.
+    return EditNotePage(
+      key: ValueKey(_activeNote!.id),
+      existingNote: _activeNote,
     );
   }
 
@@ -135,14 +155,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
 
     if (!isAndroid) {
-      // Open in the right-side panel tabs
-      ref.read(tabViewModelProvider.notifier).openTab(note);
+      // Replace the active note on the right-side panel
+      setState(() {
+        _activeNote = note;
+      });
     } else {
       // Push to new screen on mobile
       context.push(AppRoutes.edit, extra: note);
     }
   }
-
 
   Widget _buildStandardGridView(HomePageState homeState, HomeViewModel viewModel, bool isAndroid) {
     return Center(
@@ -154,6 +175,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: NotesGridView(
               isSelectMode: homeState.isSelectMode,
               noteIds: homeState.selectedNoteIds,
+              // Pass the currently active note down to the grid for highlighting
+              activeNoteId: _activeNote?.id,
               onToggleSelection: viewModel.toggleSelection,
               onEnableSelectMode: viewModel.enableSelectMode,
               onPromptPassword: _promptForPassword,
@@ -165,103 +188,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildDesktopTabView(TabViewState tabState, TabViewModel tabViewModel) {
-    if (tabState.openTabs.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.edit_note, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'No tabs open',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 18),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Select a note from the sidebar or click + to start editing.',
-              style: TextStyle(color: Colors.grey.shade500),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        Container(
-          height: 40,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: tabState.openTabs.length,
-            itemBuilder: (context, index) {
-              final note = tabState.openTabs[index];
-              final isActive = index == tabState.activeTabIndex;
-
-              return GestureDetector(
-                onTap: () => tabViewModel.switchTab(index),
-                child: Container(
-                  padding: const EdgeInsets.only(left: 16, right: 8),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? Theme.of(context).colorScheme.surface
-                        : Colors.transparent,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: isActive
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        note.title.isEmpty ? 'Untitled' : note.title,
-                        style: TextStyle(
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                          color: isActive
-                              ? Theme.of(context).colorScheme.onSurface
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        splashRadius: 16,
-                        onPressed: () => tabViewModel.closeTab(index),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        Expanded(
-          child: IndexedStack(
-            index: tabState.activeTabIndex,
-            children: tabState.openTabs.map((note) {
-              return EditNotePage(
-                key: ValueKey(note.id),
-                existingNote: note,
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  PreferredSizeWidget _buildResponsiveAppBar(
-      bool isAndroid,
-      HomePageState state,
-      HomeViewModel viewModel,
-      ) {
+  PreferredSizeWidget _buildResponsiveAppBar(bool isAndroid, HomePageState state, HomeViewModel viewModel) {
     if (state.isSelectMode) {
       return SelectModeAppBar(
         noteIds: state.selectedNoteIds,
@@ -275,10 +202,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     if (state.isSearchMode) {
-      return SearchModeAppBar(
-        searchController: _searchController,
-        onExitSearchMode: _exitSearchMode,
-      );
+      return SearchModeAppBar(searchController: _searchController, onExitSearchMode: _exitSearchMode);
     }
 
     return DefaultHomeAppBar(
@@ -306,9 +230,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
       if (!lockManager.hasMasterPassword) {
         await lockManager.setupMasterPassword(enteredPassword);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('New Master Password Set!')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New Master Password Set!')));
       }
 
       final success = lockManager.verifyAndSessionUnlock(note.id, enteredPassword);
@@ -316,14 +238,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 
       if (success) {
         if (!isAndroid) {
-          ref.read(tabViewModelProvider.notifier).openTab(note);
+          setState(() {
+            _activeNote = note;
+          });
         } else {
           context.push(AppRoutes.edit, extra: note);
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Incorrect Password')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Incorrect Password')));
       }
     }
   }

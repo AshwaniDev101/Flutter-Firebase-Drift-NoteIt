@@ -9,16 +9,17 @@ import '../../core/providers.dart';
 class NotesGridView extends ConsumerWidget {
   final bool isSelectMode;
   final Set<int> noteIds;
+  final int? activeNoteId; // Added to identify the active note
   final Function(int) onToggleSelection;
   final Function() onEnableSelectMode;
   final Future<void> Function(BuildContext, Note) onPromptPassword;
-
   final void Function(Note) onNoteTap;
 
   const NotesGridView({
     super.key,
     required this.isSelectMode,
     required this.noteIds,
+    this.activeNoteId,
     required this.onToggleSelection,
     required this.onEnableSelectMode,
     required this.onPromptPassword,
@@ -60,9 +61,10 @@ class NotesGridView extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final currentNote = notes[index];
                 final isSelected = noteIds.contains(currentNote.id);
+                final isActive = currentNote.id == activeNoteId;
                 final displayAsLocked = currentNote.isLocked;
 
-                return NoteCard(
+                final noteCard = NoteCard(
                   note: currentNote,
                   isSelected: isSelected,
                   searchQuery: ref.read(searchQueryProvider),
@@ -94,7 +96,6 @@ class NotesGridView extends ConsumerWidget {
                         onToggleSelection(currentNote.id);
                       },
                     ),
-
                     if (!isSelectMode) ...[
                       IconButton(
                         icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
@@ -104,6 +105,23 @@ class NotesGridView extends ConsumerWidget {
                     ],
                   ],
                 );
+
+                // If this note is currently open in the right-side editor, wrap it in a highlight border
+                if (isActive && !isSelectMode) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: colorScheme.primary,
+                        width: 2.5,
+                      ),
+                    ),
+                    child: noteCard,
+                  );
+                }
+
+                return noteCard;
               },
             ),
           );
