@@ -6,13 +6,15 @@ import 'package:noteit/core/routing/routing.dart';
 import 'package:noteit/database/drift/drift_database.dart';
 import 'package:noteit/features/home_page/screens/view/widgets/home_app_bars.dart';
 import 'package:noteit/features/home_page/screens/view/widgets/notes_grid_view.dart';
-import 'package:noteit/features/home_page/screens/view/widgets/sort_options_bar.dart';
 import 'package:noteit/features/password_page/screens/view/password_page.dart';
 import 'package:noteit/features/edit_note_page/screens/view/edit_note_page.dart';
+
 import '../../../../shared/managers/lock_manger/lock_manager.dart';
 import '../../../../database/sync_manager.dart';
 import '../../../drawer_page/homepage_drawer.dart';
 import '../core/providers.dart';
+import '../core/sort.dart';
+import '../core/options.dart';
 import '../viewmodel/home_view_model.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -25,7 +27,6 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   final TextEditingController _searchController = TextEditingController();
 
-  // Tracks the currently selected note for the desktop/web split view
   Note? _activeNote;
 
   @override
@@ -33,6 +34,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncNotifierProvider.notifier).executeFullSync();
+    });
+
+    _searchController.addListener(() {
+      setState(() {});
     });
   }
 
@@ -42,7 +47,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
-  void _exitSearchMode() {
+  void _clearSearch() {
     _searchController.clear();
     ref.read(searchQueryProvider.notifier).clear();
     ref.read(homeViewModelProvider.notifier).exitSearchMode();
@@ -51,22 +56,17 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
-
-    // ViewModel State & Notifier
     final homeState = ref.watch(homeViewModelProvider);
     final viewModel = ref.read(homeViewModelProvider.notifier);
 
-    // Forces Riverpod to keep SyncManager awake
     ref.watch(syncNotifierProvider);
 
     return PopScope(
-      canPop: !homeState.isSelectMode && !homeState.isSearchMode,
+      canPop: !homeState.isSelectMode,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
         if (homeState.isSelectMode) {
           viewModel.clearSelection();
-        } else if (homeState.isSearchMode) {
-          _exitSearchMode();
         }
       },
       child: Scaffold(
@@ -92,10 +92,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 syncStatus: 0,
                 versionCounter: 1,
               );
-              // Open new note directly in the right panel
-              setState(() {
-                _activeNote = emptyNote;
-              });
+              setState(() { _activeNote = emptyNote; });
             } else {
               context.push(AppRoutes.edit);
             }
@@ -104,7 +101,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         body: !isAndroid
             ? _buildSplitView(homeState, viewModel, isAndroid)
-            : _buildStandardGridView(homeState, viewModel, isAndroid),
+            : _buildNoteListPanel(homeState, viewModel, isAndroid),
       ),
     );
   }
@@ -113,18 +110,163 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Row(
       children: [
         SizedBox(
-          width: 300,
-          child: _buildStandardGridView(homeState, viewModel, isAndroid),
+          width: 320,
+          child: _buildNoteListPanel(homeState, viewModel, isAndroid),
         ),
         const VerticalDivider(width: 1, thickness: 1),
+        Expanded(child: _buildContentPanel()),
+      ],
+    );
+  }
+
+  Widget _buildNoteListPanel(HomePageState homeState, HomeViewModel viewModel, bool isAndroid) {
+    final currentSortOption = ref.watch(noteSortOptionProvider);
+    final currentPlatformFilter = ref.watch(platformFilterProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search notes...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: _clearSearch,
+                    )
+                        : null,
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  ),
+                  onTap: () {
+                    if (!homeState.isSearchMode) viewModel.enterSearchMode();
+                  },
+                  onChanged: (value) {
+                    if (value.isNotEmpty && !homeState.isSearchMode) {
+                      viewModel.enterSearchMode();
+                    }
+                    if (value.isEmpty) {
+                      _clearSearch();
+                    } else {
+                      // Properly updating your search state
+                      ref.read(searchQueryProvider.notifier).updateQuery(value);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Sort & Filter Menu mirroring your DefaultHomeAppBar logic
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.filter_list),
+                tooltip: 'Sort & Filter',
+                onSelected: (String value) {
+                  switch (value) {
+                    case 'sortCreated':
+                      ref.read(noteSortOptionProvider.notifier).updateSort(NoteSortOption.createdAt);
+                      break;
+                    case 'sortName':
+                      ref.read(noteSortOptionProvider.notifier).updateSort(NoteSortOption.name);
+                      break;
+                    case 'sortUpdated':
+                      ref.read(noteSortOptionProvider.notifier).updateSort(NoteSortOption.updatedAt);
+                      break;
+                    case 'filterPhone':
+                      ref.read(platformFilterProvider.notifier).toggleFilter(PlatformOptions.android);
+                      break;
+                    case 'filterWindows':
+                      ref.read(platformFilterProvider.notifier).toggleFilter(PlatformOptions.windows);
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Text('SORT BY', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ),
+                  _buildSortItem('sortCreated', 'Created', currentSortOption == NoteSortOption.createdAt, colorScheme),
+                  _buildSortItem('sortName', 'Name', currentSortOption == NoteSortOption.name, colorScheme),
+                  _buildSortItem('sortUpdated', 'Last Updated', currentSortOption == NoteSortOption.updatedAt, colorScheme),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Text('FILTER PLATFORM', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ),
+                  _buildFilterItem('filterPhone', Icons.phone_android_outlined, 'Phone', currentPlatformFilter == PlatformOptions.android),
+                  _buildFilterItem('filterWindows', Icons.desktop_windows_outlined, 'Windows', currentPlatformFilter == PlatformOptions.windows),
+                ],
+              ),
+            ],
+          ),
+        ),
+
         Expanded(
-          child: _buildRightPanel(),
+          child: NotesGridView(
+            isSelectMode: homeState.isSelectMode,
+            noteIds: homeState.selectedNoteIds,
+            activeNoteId: _activeNote?.id,
+            onToggleSelection: viewModel.toggleSelection,
+            onEnableSelectMode: viewModel.enableSelectMode,
+            onPromptPassword: _promptForPassword,
+            onNoteTap: _handleNoteTap,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildRightPanel() {
+  // Helper for menu item building
+  PopupMenuItem<String> _buildSortItem(String value, String label, bool isSelected, ColorScheme colorScheme) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label),
+          Icon(
+            isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+            size: 20,
+            color: isSelected ? colorScheme.primary : Colors.grey,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper for menu item building
+  PopupMenuItem<String> _buildFilterItem(String value, IconData icon, String label, bool isSelected) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text(label),
+            ],
+          ),
+          IgnorePointer(child: Checkbox(value: isSelected, onChanged: (_) {})),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentPanel() {
     if (_activeNote == null) {
       return Center(
         child: Column(
@@ -135,7 +277,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             Text('No note selected', style: TextStyle(color: Colors.grey.shade600, fontSize: 18)),
             const SizedBox(height: 4),
             Text(
-              'Select a note from the sidebar or click + to start editing.',
+              'Select a note from the list or click + to start editing.',
               style: TextStyle(color: Colors.grey.shade500),
             ),
           ],
@@ -143,8 +285,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
 
-    // ValueKey ensures that Flutter destroys and rebuilds the EditNotePage
-    // entirely when the note ID changes, keeping states clean between selections.
     return EditNotePage(
       key: ValueKey(_activeNote!.id),
       existingNote: _activeNote,
@@ -155,37 +295,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
 
     if (!isAndroid) {
-      // Replace the active note on the right-side panel
-      setState(() {
-        _activeNote = note;
-      });
+      setState(() { _activeNote = note; });
     } else {
-      // Push to new screen on mobile
       context.push(AppRoutes.edit, extra: note);
     }
-  }
-
-  Widget _buildStandardGridView(HomePageState homeState, HomeViewModel viewModel, bool isAndroid) {
-    return Center(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!homeState.isSearchMode && !isAndroid) const SortOptionsBar(),
-          Expanded(
-            child: NotesGridView(
-              isSelectMode: homeState.isSelectMode,
-              noteIds: homeState.selectedNoteIds,
-              // Pass the currently active note down to the grid for highlighting
-              activeNoteId: _activeNote?.id,
-              onToggleSelection: viewModel.toggleSelection,
-              onEnableSelectMode: viewModel.enableSelectMode,
-              onPromptPassword: _promptForPassword,
-              onNoteTap: _handleNoteTap,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   PreferredSizeWidget _buildResponsiveAppBar(bool isAndroid, HomePageState state, HomeViewModel viewModel) {
@@ -201,14 +314,23 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
 
-    if (state.isSearchMode) {
-      return SearchModeAppBar(searchController: _searchController, onExitSearchMode: _exitSearchMode);
-    }
-
-    return DefaultHomeAppBar(
-      isAndroid: isAndroid,
-      searchController: _searchController,
-      onEnterSearchMode: viewModel.enterSearchMode,
+    return AppBar(
+      title: const Text('Notes'),
+      elevation: 0,
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.sync),
+          tooltip: 'Sync Notes',
+          onPressed: () {
+            ref.read(syncNotifierProvider.notifier).executeFullSync();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Syncing notes...')),
+            );
+          },
+        ),
+        const SizedBox(width: 8),
+      ],
     );
   }
 
@@ -238,9 +360,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
       if (success) {
         if (!isAndroid) {
-          setState(() {
-            _activeNote = note;
-          });
+          setState(() { _activeNote = note; });
         } else {
           context.push(AppRoutes.edit, extra: note);
         }
