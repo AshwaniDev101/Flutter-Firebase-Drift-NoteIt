@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,8 +24,19 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
   final UndoHistoryController _undoController = UndoHistoryController();
 
   bool _isAutoSyncingTitle = false;
-
   late bool _isLocked;
+
+  bool _hasTriggeredFinalSave = false; // Prevents double-saving between back button and dispose
+  bool _hasCreatedNewNote = false;     // Prevents duplicating a new note if save is clicked multiple times
+
+  // Determines if this is a genuinely new note or a dummy note passed from the Desktop FAB
+  bool get _isNewNote {
+    if (widget.existingNote == null) return true;
+    return widget.existingNote!.title.isEmpty &&
+        widget.existingNote!.content.isEmpty &&
+        widget.existingNote!.versionCounter == 1 &&
+        widget.existingNote!.syncStatus == 0;
+  }
 
   @override
   void initState() {
@@ -34,7 +46,6 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
     _contentController = TextEditingController(text: widget.existingNote?.content ?? '');
     _titleFocusNode = FocusNode();
 
-    // Force rebuild on focus state changes to toggle the visibility of the trailing 'X' and options menu
     _titleFocusNode.addListener(() {
       setState(() {});
     });
@@ -74,6 +85,10 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
 
   @override
   void dispose() {
+    // Fire a final save right before the widget is destroyed (auto-save on close)
+    _executeSave(isManualSave: false);
+
+    // Clean up resources
     _contentController.removeListener(_syncTitleFromContent);
     _titleController.removeListener(_onTitleChanged);
     _titleFocusNode.dispose();
@@ -85,45 +100,69 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
 
   String _getFormattedDate() {
     final now = widget.existingNote?.updatedAt ?? widget.existingNote?.createdAt ?? DateTime.now();
-
-    if (widget.existingNote == null) {
-      return "${now.month}/${now.day}/${now.year}";
-    }
-
+    if (_isNewNote) return "${now.month}/${now.day}/${now.year}";
     return "${now.month}/${now.day}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}";
   }
 
-  Future<void> _saveAndExit() async {
+  // A synchronous save trigger that fires API requests into the background
+  void _executeSave({bool isManualSave = false}) {
+    if (_hasTriggeredFinalSave && !isManualSave) return;
+
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
-    if (title.isEmpty && content.isEmpty) {
-      if (context.mounted) context.pop();
-      return;
-    }
+    // Do nothing if the note is completely blank
+    if (title.isEmpty && content.isEmpty) return;
 
     final viewModel = ref.read(editNoteViewModelProvider.notifier);
 
-    if (widget.existingNote == null) {
-      await viewModel.saveNote(title, content);
+    if (_isNewNote) {
+      // If we already created it, warn the user instead of spawning duplicates
+      if (_hasCreatedNewNote) {
+        if (isManualSave && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Note created! Select it from the list to update.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      viewModel.saveNote(title, content);
+      _hasCreatedNewNote = true; // Mark as created so we don't duplicate on next save
+
+      if (isManualSave && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Note Saved!'), behavior: SnackBarBehavior.floating),
+        );
+      }
     } else {
+      // Don't waste DB calls if nothing changed
       if (title != widget.existingNote!.title || content != widget.existingNote!.content) {
-        await viewModel.updateNote(widget.existingNote!.id, title, content);
+        viewModel.updateNote(widget.existingNote!.id, title, content);
+      }
+      if (isManualSave && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Note Updated!'), behavior: SnackBarBehavior.floating),
+        );
       }
     }
 
-    final state = ref.read(editNoteViewModelProvider);
-
-    if (state.error != null) {
-      SnackBarManager.show(msg: 'Failed to save note: ${state.error}');
-    } else {
-      if (context.mounted) {
-        context.pop();
-      }
+    if (!isManualSave) {
+      _hasTriggeredFinalSave = true;
     }
   }
 
-  // Pop-up menu builder to reduce widget tree nesting in the main build method
+  // Used strictly for mobile hardware back button or AppBar back button
+  void _handleMobileBack() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _executeSave(isManualSave: false);
+    if (context.mounted) {
+      context.pop();
+    }
+  }
 
   Widget _buildOptionMenu() {
     return PopupMenuButton<String>(
@@ -133,10 +172,8 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
         if (value == 'toggle_lock') {
           bool isCurrentlyLocked = _isLocked;
           final lockManager = ref.read(lockManagerProvider.notifier);
-
           bool shouldProceed = false;
 
-          // Check if they need to setup a Master Password first
           if (!lockManager.hasMasterPassword) {
             final enteredPassword = await showGeneralDialog<String>(
               context: context,
@@ -151,94 +188,68 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
               if (context.mounted) SnackBarManager.show(msg: 'Master Password Created!');
               shouldProceed = true;
             }
-          }
-          // If a password already exists, skip the dialog!
-          // They are inside the editor, so they are already authenticated.
-          else {
+          } else {
             shouldProceed = true;
           }
 
-          // Proceed with locking/unlocking instantly
           if (shouldProceed) {
             final success = await lockManager.togglePersistentLock(
               widget.existingNote!.id,
-              '', // Password is empty
+              '',
               shouldLock: !isCurrentlyLocked,
-              ignorePassword: true, // Tell LockManager to trust this request
+              ignorePassword: true,
             );
 
             if (success) {
               if (context.mounted) {
-                setState(() {
-                  _isLocked = !_isLocked;
-                });
-
-                if(!isCurrentlyLocked){
-                  context.pop();  // Kick them out of the editor if they just locked it
-                }
+                setState(() { _isLocked = !_isLocked; });
+                if (!isCurrentlyLocked) context.pop();
               }
             } else {
               if (context.mounted) SnackBarManager.show(msg: 'Action failed');
             }
           }
-        }
-        // Handle discard: immediately pop the route without triggering the save lifecycle
-        else if (value == 'discard') {
-          if (context.mounted) {
-            context.pop();
-          }
-        }
-        // Handle delete
-        else if (value == 'delete') {
-          if (widget.existingNote != null) {
+        } else if (value == 'discard') {
+          _hasTriggeredFinalSave = true; // Mark as saved so dispose() ignores it
+          if (context.mounted) context.pop();
+        } else if (value == 'delete') {
+          if (!_isNewNote && widget.existingNote != null) {
+            _hasTriggeredFinalSave = true; // Mark as saved to prevent recreate
             ref.read(editNoteViewModelProvider.notifier).deleteNote(widget.existingNote!.id);
-            if (context.mounted) {
-              context.pop();
-            }
+            if (context.mounted) context.pop();
           }
         }
       },
       itemBuilder: (BuildContext context) {
         final colorScheme = Theme.of(context).colorScheme;
-
         return [
           PopupMenuItem<String>(
             value: 'toggle_lock',
             child: Row(
               children: [
-                Icon(_isLocked ? Icons.lock_clock_outlined: Icons.lock_outline, size: 20),
+                Icon(_isLocked ? Icons.lock_clock_outlined : Icons.lock_outline, size: 20),
                 const SizedBox(width: 12),
                 Text(_isLocked ? 'Remove Lock' : 'Lock Note'),
               ],
             ),
           ),
-
-          // Discard action
           PopupMenuItem<String>(
             value: 'discard',
             child: Row(
               children: [
                 Icon(Icons.close, size: 20, color: colorScheme.onSurface),
                 const SizedBox(width: 12),
-                Text(
-                  'Discard Changes',
-                  style: TextStyle(color: colorScheme.onSurface),
-                ),
+                Text('Discard Changes', style: TextStyle(color: colorScheme.onSurface)),
               ],
             ),
           ),
-
-          // Delete action
           const PopupMenuItem<String>(
             value: 'delete',
             child: Row(
               children: [
                 Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
                 SizedBox(width: 12),
-                Text(
-                  'Delete Note',
-                  style: TextStyle(color: Colors.redAccent),
-                ),
+                Text('Delete Note', style: TextStyle(color: Colors.redAccent)),
               ],
             ),
           ),
@@ -251,116 +262,127 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final isNewNote = widget.existingNote == null;
+    final isAndroid = defaultTargetPlatform == TargetPlatform.android;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        await _saveAndExit();
+        if (isAndroid) _handleMobileBack();
       },
       child: Scaffold(
         backgroundColor: colorScheme.surface,
         appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () async {
-              FocusManager.instance.primaryFocus?.unfocus();
-              await _saveAndExit();
-            },
-          ),
-          titleSpacing: 0,
-          title: Row(
-            children: [
-
-              Expanded(
-                child: Container(
-                  height: 40,
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5), width: 1.2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _titleController,
-                    focusNode: _titleFocusNode,
-                    // Forces the text to align vertically in the absolute center of the available space
-                    textAlignVertical: TextAlignVertical.center,
-                    style: textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF1A1A1A),
-                      fontWeight: FontWeight.w600,
-                    ),
-                    decoration: InputDecoration(
-                      // Removes default Material padding so the centering algorithm works accurately
-                      isDense: true,
-                      hintText: "Title",
-                      hintStyle: textTheme.titleMedium?.copyWith(color: Colors.black38),
-                      border: InputBorder.none,
-                      // Removed vertical padding, relying entirely on textAlignVertical for Y-axis alignment
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                      suffixIcon: _titleFocusNode.hasFocus
-                          ? ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _titleController,
-                        builder: (context, value, child) {
-                          if (value.text.isEmpty) return const SizedBox.shrink();
-                          return IconButton(
-                            icon: const Icon(Icons.close, size: 18, color: Colors.black54),
-                            onPressed: () {
-                              _titleController.clear();
-                              _isAutoSyncingTitle = true;
-                            },
-                          );
-                        },
-                      )
-                          : const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Options menu
-              if (!isNewNote) ...[
-                _buildOptionMenu(),
-                const SizedBox(width: 4),
+          automaticallyImplyLeading: false,
+          leading: isAndroid
+              ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _handleMobileBack)
+              : null,
+          titleSpacing: isAndroid ? 0 : 24,
+          title: Container(
+            height: 40,
+            constraints: const BoxConstraints(maxWidth: 600), // Better scaling for desktop
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5), width: 1.2),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
               ],
-            ],
+            ),
+            child: TextField(
+              controller: _titleController,
+              focusNode: _titleFocusNode,
+              textAlignVertical: TextAlignVertical.center,
+              style: textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: "Title",
+                hintStyle: textTheme.titleMedium?.copyWith(color: Colors.grey),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                suffixIcon: _titleFocusNode.hasFocus
+                    ? ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _titleController,
+                  builder: (context, value, child) {
+                    if (value.text.isEmpty) return const SizedBox.shrink();
+                    return IconButton(
+                      icon: const Icon(Icons.close, size: 18, color: Colors.black54),
+                      onPressed: () {
+                        _titleController.clear();
+                        _isAutoSyncingTitle = true;
+                      },
+                    );
+                  },
+                )
+                    : const SizedBox.shrink(),
+              ),
+            ),
           ),
+          actions: [
+            // Explicit Manual Save Button
+            IconButton(
+              icon: const Icon(Icons.save_outlined),
+              tooltip: 'Save Note',
+              onPressed: () => _executeSave(isManualSave: true),
+            ),
+            // Moved Undo/Redo to the Desktop Toolbar
+            if (!isAndroid) ...[
+              ValueListenableBuilder<UndoHistoryValue>(
+                valueListenable: _undoController,
+                builder: (context, value, child) {
+                  return IconButton(
+                    onPressed: value.canUndo ? () => _undoController.undo() : null,
+                    icon: const Icon(Icons.undo, size: 20),
+                    tooltip: 'Undo',
+                  );
+                },
+              ),
+              ValueListenableBuilder<UndoHistoryValue>(
+                valueListenable: _undoController,
+                builder: (context, value, child) {
+                  return IconButton(
+                    onPressed: value.canRedo ? () => _undoController.redo() : null,
+                    icon: const Icon(Icons.redo, size: 20),
+                    tooltip: 'Redo',
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
+            if (!_isNewNote) _buildOptionMenu(),
+            const SizedBox(width: 8),
+          ],
         ),
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Metadata header: Trailing alignment for timestamp and state indicator
               Padding(
-                padding: const EdgeInsets.only(left: 18.0, right: 18.0,),
+                padding: EdgeInsets.symmetric(horizontal: isAndroid ? 18.0 : 24.0, vertical: 8.0),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: isNewNote ? colorScheme.primaryContainer : colorScheme.tertiaryContainer,
+                        color: _isNewNote ? colorScheme.primaryContainer : colorScheme.tertiaryContainer,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        isNewNote ? 'New' : 'Updating...',
+                        _isNewNote ? 'New' : 'Updating...',
                         style: textTheme.labelSmall?.copyWith(
-                          color: isNewNote ? colorScheme.onPrimaryContainer : colorScheme.onTertiaryContainer,
+                          color: _isNewNote ? colorScheme.onPrimaryContainer : colorScheme.onTertiaryContainer,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                     const Spacer(),
-                    if(_isLocked)
+                    if (_isLocked) ...[
                       Icon(Icons.lock_outline, size: 16, color: colorScheme.onSurfaceVariant),
-                      SizedBox(width: 10,),
+                      const SizedBox(width: 8),
+                    ],
                     Text(
                       _getFormattedDate(),
                       style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
@@ -368,107 +390,61 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
                   ],
                 ),
               ),
-
-              // Primary editor canvas leveraging CustomPaint for dynamic gridline rendering
               Expanded(
-                child: CustomPaint(
-                  // painter: NotebookLinesPainter(
-                  //   // Exact calculation: fontSize (18) * height (1.6) = 28.8
-                  //   lineHeight: 28.8,
-                  //   lineColor: colorScheme.primary.withValues(alpha: 0.08),
-                  //   // Exact calculation: Container top padding (16.0) + lineHeight (28.8) = 44.8
-                  //   // This forces the very first drawn line to sit underneath the first line of text
-                  //   topPadding: 44.8,
-                  // ),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0),
-                    child: TextField(
-                      controller: _contentController,
-                      undoController: _undoController,
-                      maxLines: null,
-                      expands: true,
-                      keyboardType: TextInputType.multiline,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                      ),
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontSize: 18,
-                        height: 1.6,
-                        color: const Color(0xFFFFFFFF),
-                      ),
+                // Using Align TopCenter fixes the weird vertical text centering caused by expands:true
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: isAndroid ? 20.0 : 24.0, vertical: 16.0),
+                  child: TextField(
+                    controller: _contentController,
+                    undoController: _undoController,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top, // Crucial fix for desktop input fields
+                    keyboardType: TextInputType.multiline,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(border: InputBorder.none),
+                    style: textTheme.bodyLarge?.copyWith(
+                      fontSize: 18,
+                      height: 1.6,
                     ),
                   ),
                 ),
               ),
-
-              // Editor tool palette: Embedded in body layout to persist above the virtual keyboard inset
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ValueListenableBuilder<UndoHistoryValue>(
-                      valueListenable: _undoController,
-                      builder: (context, value, child) {
-                        return IconButton(
-                          onPressed: value.canUndo ? () => _undoController.undo() : null,
-                          icon: const Icon(Icons.undo),
-                          tooltip: 'Undo',
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 24),
-                    ValueListenableBuilder<UndoHistoryValue>(
-                      valueListenable: _undoController,
-                      builder: (context, value, child) {
-                        return IconButton(
-                          onPressed: value.canRedo ? () => _undoController.redo() : null,
-                          icon: const Icon(Icons.redo),
-                          tooltip: 'Redo',
-                        );
-                      },
-                    ),
-                  ],
+              // Editor tool palette for Mobile Only
+              if (isAndroid)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ValueListenableBuilder<UndoHistoryValue>(
+                        valueListenable: _undoController,
+                        builder: (context, value, child) {
+                          return IconButton(
+                            onPressed: value.canUndo ? () => _undoController.undo() : null,
+                            icon: const Icon(Icons.undo),
+                            tooltip: 'Undo',
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 24),
+                      ValueListenableBuilder<UndoHistoryValue>(
+                        valueListenable: _undoController,
+                        builder: (context, value, child) {
+                          return IconButton(
+                            onPressed: value.canRedo ? () => _undoController.redo() : null,
+                            icon: const Icon(Icons.redo),
+                            tooltip: 'Redo',
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ),
       ),
     );
-  }
-}
-
-// Low-level painter implementation for ruled canvas lines
-class NotebookLinesPainter extends CustomPainter {
-  final double lineHeight;
-  final Color lineColor;
-  final double topPadding;
-
-  NotebookLinesPainter({
-    required this.lineHeight,
-    required this.lineColor,
-    required this.topPadding,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = lineColor
-      ..strokeWidth = 1.0;
-
-    double y = topPadding;
-    while (y < size.height) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-      y += lineHeight; // Uniformly steps down based on calculated text bounds
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant NotebookLinesPainter oldDelegate) {
-    return oldDelegate.lineHeight != lineHeight ||
-        oldDelegate.lineColor != lineColor ||
-        oldDelegate.topPadding != topPadding;
   }
 }
