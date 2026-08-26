@@ -23,6 +23,8 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
   late final FocusNode _titleFocusNode;
   final UndoHistoryController _undoController = UndoHistoryController();
 
+  late final EditNoteViewModel _viewModel;
+
   bool _isAutoSyncingTitle = false;
   late bool _isLocked;
 
@@ -41,6 +43,9 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
   @override
   void initState() {
     super.initState();
+    // Grab the notifier exactly once when the page loads
+    _viewModel = ref.read(editNoteViewModelProvider.notifier);
+
     _isLocked = widget.existingNote?.isLocked ?? false;
     _titleController = TextEditingController(text: widget.existingNote?.title ?? '');
     _contentController = TextEditingController(text: widget.existingNote?.content ?? '');
@@ -114,8 +119,6 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
     // Do nothing if the note is completely blank
     if (title.isEmpty && content.isEmpty) return;
 
-    final viewModel = ref.read(editNoteViewModelProvider.notifier);
-
     if (_isNewNote) {
       // If we already created it, warn the user instead of spawning duplicates
       if (_hasCreatedNewNote) {
@@ -130,7 +133,8 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
         return;
       }
 
-      viewModel.saveNote(title, content);
+      // Use cached _viewModel
+      _viewModel.saveNote(title, content);
       _hasCreatedNewNote = true; // Mark as created so we don't duplicate on next save
 
       if (isManualSave && context.mounted) {
@@ -141,7 +145,8 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
     } else {
       // Don't waste DB calls if nothing changed
       if (title != widget.existingNote!.title || content != widget.existingNote!.content) {
-        viewModel.updateNote(widget.existingNote!.id, title, content);
+        // Use cached _viewModel
+        _viewModel.updateNote(widget.existingNote!.id, title, content);
       }
       if (isManualSave && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -284,9 +289,9 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
             decoration: BoxDecoration(
               color: colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5), width: 1.2),
+              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5), width: 1.2),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2)),
               ],
             ),
             child: TextField(
