@@ -114,7 +114,6 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
     return _isNewNote ? "${now.month}/${now.day}/${now.year}" : "${now.month}/${now.day}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}";
   }
 
-
   @override
   Widget build(BuildContext context) {
     final isDesktop = defaultTargetPlatform == TargetPlatform.windows ||
@@ -143,7 +142,7 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
         titleSpacing: 24,
         title: _buildTitleField(colorScheme, textTheme, maxWidth: 600),
         actions: [
-          IconButton(icon: const Icon(Icons.save_outlined), tooltip: 'Save Note', onPressed: () => _executeSave(isManualSave: true)),
+
           _buildUndoRedoButtons(),
           if (!_isNewNote) _buildOptionMenu(),
           const SizedBox(width: 16),
@@ -153,19 +152,12 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
         children: [
           _buildMetaDataRow(colorScheme, textTheme, padding: 24.0),
           Expanded(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800), // Max width for desktop reading
-                child: _buildContentField(textTheme, padding: 24.0),
-              ),
-            ),
+            child: _buildContentField(textTheme, padding: 24.0),
           ),
         ],
       ),
     );
   }
-
 
   Widget _buildMobileUI() {
     final colorScheme = Theme.of(context).colorScheme;
@@ -205,45 +197,50 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
   }
 
   // SHARED UI WIDGETS
-
   Widget _buildTitleField(ColorScheme colorScheme, TextTheme textTheme, {double? maxWidth}) {
-    return Container(
-      height: 40,
-      constraints: maxWidth != null ? BoxConstraints(maxWidth: maxWidth) : null,
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5), width: 1.2),
-      ),
-      child: TextField(
-        controller: _titleController,
-        focusNode: _titleFocusNode,
-        textAlignVertical: TextAlignVertical.center,
-        style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.w600),
-        decoration: InputDecoration(
-          isDense: true, hintText: "Title", border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-          suffixIcon: _titleFocusNode.hasFocus
-              ? ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _titleController,
-            builder: (context, value, child) {
-              if (value.text.isEmpty) return const SizedBox.shrink();
-              return IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                onPressed: () {
-                  _titleController.clear();
-                  _isAutoSyncingTitle = true;
+    return Row(
+      children: [
+        Container(
+          height: 40,
+          constraints: maxWidth != null ? BoxConstraints(maxWidth: maxWidth) : null,
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5), width: 1.2),
+          ),
+          child: TextField(
+            controller: _titleController,
+            focusNode: _titleFocusNode,
+            textAlignVertical: TextAlignVertical.center,
+            style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              isDense: true, hintText: "Title", border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              suffixIcon: _titleFocusNode.hasFocus
+                  ? ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _titleController,
+                builder: (context, value, child) {
+                  if (value.text.isEmpty) return const SizedBox.shrink();
+                  return IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () {
+                      _titleController.clear();
+                      _isAutoSyncingTitle = true;
+                    },
+                  );
                 },
-              );
-            },
-          ) : const SizedBox.shrink(),
+              ) : const SizedBox.shrink(),
+            ),
+          ),
         ),
-      ),
+        SizedBox(width: 8,),
+        IconButton(icon: const Icon(Icons.save_outlined), tooltip: 'Save Note', onPressed: () => _executeSave(isManualSave: true)),
+      ],
     );
   }
 
   Widget _buildContentField(TextTheme textTheme, {required double padding}) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: padding, vertical: 16.0),
+      padding: EdgeInsets.symmetric(horizontal: padding, vertical: 0),
       child: TextField(
         controller: _contentController,
         undoController: _undoController,
