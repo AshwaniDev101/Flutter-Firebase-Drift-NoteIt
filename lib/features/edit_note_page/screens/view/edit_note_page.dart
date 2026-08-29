@@ -167,15 +167,15 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        // The mobile back button is strictly defined here
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: _handleMobileBack,
         ),
         titleSpacing: 0,
-        title: _buildTitleField(colorScheme, textTheme),
+        // Pass showSaveIcon: false to hide it in mobile mode
+        title: _buildTitleField(colorScheme, textTheme, showSaveIcon: false),
         actions: [
-          IconButton(icon: const Icon(Icons.save_outlined), onPressed: () => _executeSave(isManualSave: true)),
+          // Removed the duplicate save icon from here
           if (!_isNewNote) _buildOptionMenu(),
           const SizedBox(width: 8),
         ],
@@ -185,7 +185,6 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
           children: [
             _buildMetaDataRow(colorScheme, textTheme, padding: 18.0),
             Expanded(child: _buildContentField(textTheme, padding: 20.0)),
-            // Undo/Redo at the bottom for mobile thumbs
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: _buildUndoRedoButtons(isMobileView: true),
@@ -197,43 +196,58 @@ class _EditNotePageState extends ConsumerState<EditNotePage> {
   }
 
   // SHARED UI WIDGETS
-  Widget _buildTitleField(ColorScheme colorScheme, TextTheme textTheme, {double? maxWidth}) {
+  // Added `showSaveIcon` parameter with a default of true (for desktop)
+  Widget _buildTitleField(ColorScheme colorScheme, TextTheme textTheme, {double? maxWidth, bool showSaveIcon = true}) {
     return Row(
       children: [
-        Container(
-          height: 40,
-          constraints: maxWidth != null ? BoxConstraints(maxWidth: maxWidth) : null,
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5), width: 1.2),
-          ),
-          child: TextField(
-            controller: _titleController,
-            focusNode: _titleFocusNode,
-            textAlignVertical: TextAlignVertical.center,
-            style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.w600),
-            decoration: InputDecoration(
-              isDense: true, hintText: "Title", border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              suffixIcon: _titleFocusNode.hasFocus
-                  ? ValueListenableBuilder<TextEditingValue>(
-                valueListenable: _titleController,
-                builder: (context, value, child) {
-                  if (value.text.isEmpty) return const SizedBox.shrink();
-                  return IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () {
-                      _titleController.clear();
-                      _isAutoSyncingTitle = true;
-                    },
-                  );
-                },
-              ) : const SizedBox.shrink(),
+        // Wrapped the Container in Flexible to give it proper bounds on mobile
+        Flexible(
+          child: Container(
+            height: 40,
+            constraints: maxWidth != null ? BoxConstraints(maxWidth: maxWidth) : null,
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5), width: 1.2),
+            ),
+            child: TextField(
+              controller: _titleController,
+              focusNode: _titleFocusNode,
+              textAlignVertical: TextAlignVertical.center,
+              style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: "Title",
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                suffixIcon: _titleFocusNode.hasFocus
+                    ? ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _titleController,
+                  builder: (context, value, child) {
+                    if (value.text.isEmpty) return const SizedBox.shrink();
+                    return IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () {
+                        _titleController.clear();
+                        _isAutoSyncingTitle = true;
+                      },
+                    );
+                  },
+                ) : const SizedBox.shrink(),
+              ),
             ),
           ),
         ),
-        SizedBox(width: 8,),
-        IconButton(icon: const Icon(Icons.save_outlined), tooltip: 'Save Note', onPressed: () => _executeSave(isManualSave: true)),
+
+        // Conditionally render the save icon based on the platform requirement
+        if (showSaveIcon) ...[
+          const SizedBox(width: 8),
+          IconButton(
+              icon: const Icon(Icons.save_outlined),
+              tooltip: 'Save Note',
+              onPressed: () => _executeSave(isManualSave: true)
+          ),
+        ]
       ],
     );
   }
